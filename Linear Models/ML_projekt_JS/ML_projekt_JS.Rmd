@@ -1,0 +1,795 @@
+---
+title: "Omówienie pakietu 'AID'"
+author: "Jędrzej Sarna"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: yes
+    theme: default
+    highlight: tango
+---
+
+---
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(repos = c(CRAN = "https://cran.r-project.org/"))
+```
+
+# Wprowadzenie
+
+Pracując z różnymi zestawami danych, narzędzia statystyczne, takie jak pakiet AID, odgrywają kluczową rolę. Pakiet AID, ze szczególnym uwzględnieniem transformacji Boxa-Coxa, dostarcza niezbędnych narzędzi do przetwarzania i analizy danych w odpowiedni sposób.
+
+Transformacja Boxa-Coxa jest wykorzystywana do przekształcania danych, tak aby lepiej spełniały one standardowe założenia statystyczne, takie jak normalność rozkładu czy homoscedastyczność. Dzięki temu, można dokonywać bardziej wiarygodnych analiz danych.
+
+Pakiet AID oferuje nie tylko samo narzędzie transformacji, ale również zaawansowane podejścia graficzne i statystyczne do oceny skuteczności przekształceń. Wykorzystanie wykresów takich jak histogramy czy wykresy Q-Q pozwala na wizualną ocenę, czy dane po transformacji są bliższe rozkładowi normalnemu. Dodatkowo, za pomocą testów statystycznych, takich jak test Shapiro-Wilka, użytkownicy mogą formalnie zweryfikować skuteczność przeprowadzonej transformacji.
+
+Kluczową cechą pakietu AID jest również możliwość obliczenia średnich i przedziałów ufności dla danych po transformacji zwrotnej. Ta funkcjonalność jest kluczowa w interpretacji wyników i prezentacji danych w ich pierwotnej formie, umożliwiając lepsze zrozumienie i komunikację wyników badania.
+
+W tym dokumencie zostają przedstawione funkcje i zbiory danych zawarte w pakiecie AID wraz z przykładami użycia.
+
+## Specyfikacje pakietu na podstawie dokumentacji
+
+**Typ**: Pakiet  
+**Tytuł**: Transformacja Potęgowa Boxa-Coxa  
+**Wersja**: 2.9  
+**Data**: 2023-09-13  
+**Zależności**: R (>= 3.2.0)  
+**Importuje**: MASS, tseries, nortest, ggplot2, graphics, psych, stats, meta, stringr  
+**Sugeruje**: onewaytests  
+**Autor**: Osman Dag [aut, cre], Muhammed Ali Yilmaz [aut], Ozgur Asar [ctb], Ozlem Ilk [ctb]  
+**Opiekun**: Osman Dag <osman.dag@outlook.com>  
+**Opis**: Wykonuje transformację potęgową Boxa-Coxa dla różnych celów, podejścia graficzne, ocenia sukces transformacji za pomocą testów i wykresów, oblicza średnią i przedział ufności dla danych po transformacji zwrotnej.  
+**Licencja**: GPL (>= 2)  
+**Wymaga kompilacji**: nie  
+**Repozytorium**: CRAN  
+**Data/Publikacja**: 2023-09-13 11:42:34 UTC
+
+## Instalacja pakietu
+Aby zainstalować pakiet AID w R, należy wykonać polecenie `install.packages("AID")`. Po zainstalowaniu, pakiet ten można załadować do środowiska R za pomocą polecenia `library(AID)`.
+
+```{r , message=FALSE}
+install.packages("AID")
+library(AID)
+```
+
+# Zbiory Danych
+Rozpoczynając analizę pakietu AID, warto najpierw przyjrzeć się dostępnym w nim zbiorom danych. Zbiory danych w pakietach R zazwyczaj służą do demonstracji możliwości pakietu, testowania funkcji, a także jako materiały edukacyjne.
+
+## AADT - *Average Annual Daily Traffic Data*
+
+**Opis**  
+Dane dotyczące średniego rocznego ruchu dziennego, zebrane z bazy danych Departamentu Transportu Minnesoty.
+
+**Użycie**  
+`data(AADT)`
+
+<details>
+<summary><span style="color: blue;">**Format**</summary>
+
+Ramka danych zawierająca 121 obserwacji na następujące 8 zmiennych: 
+
+- `aadt`: średni roczny ruch dzienny na odcinku drogi
+
+- `ctypop`: populacja hrabstwa  
+
+- `lanes`: liczba pasów ruchu na odcinku drogi  
+
+- `width`: szerokość odcinka drogi (w stopach)  
+
+- `control`: czynnik z poziomami: kontrola dostępu; brak kontroli dostępu  
+
+- `class`: czynnik z poziomami: międzystanowa wiejska; nie-międzystanowa wiejska; międzystanowa miejska; nie-międzystanowa miejska  
+
+- `truck`: dostępność ciężarówek na odcinku drogi  
+
+- `locale`: czynnik z poziomami: wiejski; miejski, populacja <= 50,000; miejski, populacja > 50,000
+
+</details>
+```{r}
+data(AADT)
+summary(AADT)
+```
+
+## grades - *Student Grades Data*
+
+**Opis**  
+Ogólne oceny studentów z klasy prowadzonej przez dr. Ozlem Ilk.
+
+**Użycie**  
+`data(grades)`
+
+<span style="color: blue;">**Format**</span>
+
+Ramka danych zawierająca 42 obserwacje na następującą 1 zmienną: 
+
+- `grades`: wektor numeryczny dla ocen studentów
+
+```{r}
+data(grades)
+summary(grades)
+```
+
+## textile - *Textile Data*
+
+**Opis**  
+Liczba cykli do awarii przędzy wełnianej.
+
+**Użycie**  
+`data(textile)`
+
+<span style="color: blue;">**Format**</span>
+
+Ramka danych zawierająca 27 obserwacji na następującą 1 zmienną: 
+
+- `textile`: wektor numeryczny reprezentujący liczbę cykli do awarii
+
+```{r}
+data(textile)
+summary(textile)
+```
+
+# Transformacje Boxa-Coxa
+
+## boxcoxfr - *Transformacja Boxa-Coxa dla Jednoczynnikowej ANOVA*
+
+**Opis**  
+`boxcoxfr` wykonuje transformację Boxa-Coxa dla jednoczynnikowej analizy wariancji (ANOVA). Jest przydatna, gdy normalność lub/i homogeniczność wariancji nie są spełnione przy porównywaniu dwóch lub więcej grup.
+
+**Użycie**  
+```
+boxcoxfr(y, x, option = "both", lambda = seq(-3, 3, 0.01), lambda2 = NULL, 
+        tau = 0.05, alpha = 0.05, verbose = TRUE)
+```
+
+<details>
+<summary><span style="color: blue;">**Argumenty**</summary>
+
+- `y`: wektor numeryczny wartości danych.
+
+- `x`: wektor lub obiekt typu factor, który określa grupę dla odpowiadających elementów `y`.
+
+- `opcja`: ciąg znaków do wyboru pożądanej opcji celu transformacji. "nor" i "var" to opcje, które szukają transformacji dla zapewnienia odpowiednio normalności grup i homogeniczności wariancji. "both" to opcja, która szuka transformacji dla zapewnienia zarówno normalności grup, jak i homogeniczności wariancji. Domyślnie ustawiona na "both".
+
+- `lambda`: wektor zawierający sekwencję dopuszczalnych wartości lambda. Domyślnie ustawiony na (-3, 3) z krokiem 0.01.
+
+- `lambda2`: wartość numeryczna dodatkowego parametru przesunięcia (shifting parameter). Domyślnie ustawiona na `lambda2 = 0`.
+
+- `tau`: parametr określający obszar dopuszczalny  dla konstrukcji obszaru dopuszczalnego. Domyślnie ustawiony na 0.05. Jeśli `tau = 0`, zwraca estymator największej wiarygodności parametru transformacji.
+
+- `alpha`: poziom istotności do sprawdzenia normalności i homogeniczności wariancji po transformacji. Domyślnie ustawiony na `alpha = 0.05`.
+
+- `verbose`: wartość logiczna określająca, czy wyniki mają być wyświetlane w konsoli R.
+
+</details>
+<br>
+**Szczegóły**
+
+Oznaczając \( y \) jako zmienną w oryginalnej skali i \( y' \) jako zmienną przekształconą, transformacja potęgowa Boxa-Coxa jest zdefiniowana przez:
+
+$$
+y' = 
+  \begin{cases} 
+   \frac{y^\lambda - 1}{\lambda} & \text{jeśli } \lambda \neq 0 \\
+   \log(y) & \text{jeśli } \lambda = 0 
+  \end{cases}
+$$
+
+Jeśli dane zawierają jakiekolwiek obserwacje niedodatnie, można uwzględnić parametr przesunięcia \( \lambda_2 \) w transformacji, która jest zdefiniowana przez:
+
+$$
+y' = 
+  \begin{cases} 
+   \frac{(y + \lambda_2)^\lambda - 1}{\lambda} & \text{jeśli } \lambda \neq 0 \\
+   \log(y + \lambda_2) & \text{jeśli } \lambda = 0 
+  \end{cases}
+$$
+
+
+Do estymacji parametru transformacji używa się metody największej wiarygodności w obszarze dopuszczalnym (MLEFR). MLEFR maksymalizuje funkcję wiarygodności w obszarze dopuszczalnym, skonstruowanym przy użyciu testu Shapiro-Wilka i testu Bartletta. Po transformacji, normalność danych w każdej grupie i homogeniczność wariancji są oceniane odpowiednio przy użyciu testu Shapiro-Wilka i testu Bartletta.
+
+<details>
+<summary><span style="color: blue;">**Wartości zwracane**</summary>
+
+Lista o klasie `"boxcoxfr"` zawierająca następujące elementy:
+
+- `method`: metoda zastosowana w algorytmie
+
+- `lambda.hat`: oszacowana wartość lambda
+
+- `lambda2`: dodatkowy parametr przesunięcia
+
+- `shapiro`: ramka danych zawierająca wyniki testu Shapiro-Wilka w celu oceny normalności grup
+
+- `bartlett`: macierz zawierająca wyniki testu Bartletta w celu oceny homogeniczności wariancji
+
+- `alpha`: poziom istotności do oceny założeń
+
+- `tf.data`: przekształcony zbiór danych
+
+- `x`: obiekt typu factor, określający grupę dla odpowiadających elementów zmiennej `y`
+
+- `y.name`: nazwa zmiennej `y`
+
+- `x.name`: nazwa zmiennej `x`
+
+</details>
+<br>
+
+<details>
+<summary><span style="color: red;">**Przykład użycia**</summary>
+
+```{r}
+library(AID)
+data(AADT)
+out <- boxcoxfr(AADT$aadt, AADT$class) #stosuje transformację Boxa-Coxa do zmiennej 'aadt'z 'class' jako zmienną grupującą
+```
+**Komentarz:**
+
+- `lambda.hat : 0.07` - optymalny parametr transformacji Boxa-Coxa w tym przypadku wynosi 0.07. 
+
+- `Shapiro-Wilk normality test for transformed data (alpha = 0.05)` - wyniki testu normalności Shapiro-Wilka dla przekształconych danych. Test ten sprawdza, czy dane po transformacji mają rozkład normalny. Wartości 'statistic' i 'p.value' dla każdej grupy ('rural interstate', 'rural noninterstate', 'urban interstate', 'urban noninterstate') pokazują wyniki testu. Wszystkie grupy mają 'p.value' wyższe niż 0.05 (próg alfa), co oznacza, że nie ma podstaw do odrzucenia hipotezy o normalności rozkładu danych w każdej grupie ('Normality: YES').
+
+- `Bartlett's homogeneity test for transformed data (alpha = 0.05)` - wyniki testu homogeniczności wariancji Bartletta dla przekształconych danych.
+  - Level: All - odnosi się do wszystkich grup danych.
+  
+  - statistic 4.257035 i p.value 0.2350132: Statystyka testowa i p-wartość dla testu Bartletta. Ponieważ p-wartość jest większa niż 0.05, nie ma podstaw do odrzucenia hipotezy o jednorodności wariancji między grupami ('Homogeneity: YES').
+
+```{r}
+par(mfrow=c(1,2))
+hist(AADT$aadt) #oryginalne dane 'aadt'
+hist(out$tf.data)#przekształcone dane 'aadt'
+```
+**Komentarz:**
+
+Dane przed tranformacją nie mają rozkładu zbliżonego do normalnego (lewy histogram), a po transformacji przypominają już rozkład normalny. (prawy histogram)
+```{r}
+library(onewaytests)
+AADT$tf.aadt <- out$tf.data #dodaje przekształcone dane 'aadt' jako nową kolumnę 'tf.aadt'
+result<-aov.test(tf.aadt ~ class, data = AADT)
+```
+**Komentarz:**
+
+- `statistic` - wartość statystyki testowej, używana do określenia, czy różnice między grupami są statystycznie znaczące. 
+
+- `num_df` oraz `denom_df` - odpowiadnio oznacza liczbę grup minus jeden oraz całkowitą liczbe obserwacji minus liczba grup.
+
+- `p.value` - mierzy prawdopodobieństwo uzyskania obserwowanych wyników, lub bardziej ekstremalnych, przy założeniu, że nie ma żadnej różnicy między grupami (tzn. pod hipotezą zerową).
+
+- `Result` - Ponieważ p-wartość jest znacznie mniejsza niż standardowy próg istotności statystycznej (0.05), wynik jest statystycznie istotny. Oznacza to, że istnieją znaczące różnice między średnimi wartościami zmiennej `tf.aadt` w różnych grupach zmiennej `class`.
+
+</details>
+
+## boxcoxlm - *Transformacja Boxa-Coxa dla Modeli Liniowych*
+
+**Opis**  
+Funkcja `boxcoxlm` wykonuje transformację Boxa-Coxa dla modeli liniowych i dostarcza analizy graficznej rezultatów po transformacji.
+
+**Użycie**  
+```
+boxcoxlm(x, y, method = "lse", lambda = seq(-3,3,0.01), lambda2 = NULL,
+        plot = TRUE, alpha = 0.05, verbose = TRUE)
+```
+
+<details>
+<summary><span style="color: blue;">**Argumenty**</summary>
+
+- `x`: macierz o wymiarach \(n \times p\), gdzie n to liczba obserwacji, a p to liczba zmiennych.
+
+- `y`: wektor zmiennej odpowiedzi.
+
+- `method`: ciąg znaków określający metodę estymacji parametru transformacji Boxa-Coxa. Dostępne opcje to "sw" (test Shapiro-Wilka), "ad" (test Andersona-Darlinga), "cvm" (test Cramera-von Misesa), "pt" (test Chi-kwadrat Pearsona), "sf" (test Shapiro-Francia), "lt" (test Lillieforsa), "jb" (test Jarque-Bera), "mle" (estymacja metodą największej wiarygodności) i "lse" (estymacja metodą najmniejszych kwadratów). Domyślnie ustawiona na "lse".
+
+- `lambda`: wektor zawierający sekwencję kandydatów na wartość lambda. Domyślnie ustawiony na (-3, 3) z krokiem 0.01.
+
+- `lambda2`: wartość numeryczna dodatkowego parametru przesunięcia. Domyślnie ustawiona na `lambda2 = 0`.
+
+- `plot`: wartość logiczna określająca, czy generować wykres histogramu z linią gęstości oraz QQ-plot dla reszt przed i po transformacji. Domyślnie ustawiona na `TRUE`.
+
+- `alpha`: poziom istotności do oceny normalności reszt po transformacji. Domyślnie ustawiony na `alpha = 0.05`.
+
+- `verbose`: wartość logiczna określająca, czy wyświetlać wyniki w konsoli R. Domyślnie ustawiona na `TRUE`.
+
+</details>
+<br>
+
+**Szczegóły**
+Oznaczając \( y \) jako zmienną w oryginalnej skali i \( y' \) jako zmienną przekształconą, transformacja potęgowa Boxa-Coxa jest zdefiniowana przez:
+
+$$
+y' = \left\{
+    \begin{array}{ll}
+        \frac{y^{\lambda}-1}{\lambda} = \beta_0 + \beta_1 x_1 + \ldots + \epsilon, & \text{jeśli } \lambda \neq 0 \\
+        \log(y) = \beta_0 + \beta_1 x_1 + \ldots + \epsilon, & \text{jeśli } \lambda = 0
+    \end{array}
+\right.
+$$
+
+Jeśli dane zawierają jakiekolwiek obserwacje niedodatnie, można uwzględnić parametr przesunięcia \( \lambda_2 \) w transformacji, która jest zdefiniowana przez:
+
+
+$$
+y' =\left\{
+    \begin{array}{ll}
+         \frac{(y + \lambda_2)^{\lambda}-1}{\lambda} = \beta_0 + \beta_1 x_1 + \ldots + \epsilon, & \text{jeśli } \lambda \neq 0 \\
+        \log(y + \lambda_2) = \beta_0 + \beta_1 x_1 + \ldots + \epsilon, & \text{jeśli } \lambda = 0
+    \end{array}
+\right.
+$$
+
+Estymacja metodą największej wiarygodności (Maximum likelihood estimation) oraz estymacja metodą najmniejszych kwadratów (Least square estimation) są równoważne podczas szacowania parametru transformacji Boxa-Coxa (Kutner, 2005). W związku z tym, obie te metody dają ten sam wynik.
+
+<details>
+<summary><span style="color: blue;">**Wartości zwracane**</summary>
+
+Lista o klasie `"boxcoxlm"` zawierająca następujące elementy:
+
+- `method`: Preferowana metoda do oszacowania parametru transformacji Boxa-Coxa.
+
+- `lambda.hat`: Oszacowanie parametru transformacji Boxa-Coxa zgodnie z odpowiednią metodą.
+
+- `lambda2`: Dodatkowy parametr przesunięcia.
+
+- `statistic`: Statystyka testu normalności reszt po transformacji na podstawie określonego testu normalności w metodzie. Dla MLE i LSE, statystyka uzyskana jest przez test Shapiro-Wilka dla reszt po transformacji.
+
+- `p.value`: Wartość p testu normalności reszt po transformacji na podstawie określonego testu normalności w metodzie. Dla MLE i LSE, wartość p jest uzyskana przez test Shapiro-Wilka dla reszt po transformacji.
+
+- `alpha`: Poziom istotności do oceny normalności przekształconych reszt.
+
+- `tf.y`: Przekształcona zmienna odpowiedzi.
+
+- `tf.residuals`: Reszty po transformacji.
+
+- `y.name`: Nazwa zmiennej odpowiedzi.
+
+- `x.name`: Nazwa macierzy x.
+
+</details>
+<br>
+
+<details>
+<summary><span style="color: red;">**Przykład użycia**</summary>
+
+```{r}
+library(AID)
+data(mtcars)  # Wbudowany zestaw danych w R
+x <- as.matrix(mtcars[, c("hp", "wt")])  # Wybieramy kolumny jako zmienne niezależne
+y <- mtcars[, "mpg"]  # 'mpg' jako zmienna zależna
+
+# Transformacja Boxa-Coxa
+boxcoxlm_result <- boxcoxlm(x = x, y = y)
+```
+**Komentarz do wykresów:**
+
+- Histogramy reszt przed transformacją i po - Pierwszy wykres w lewym górnym rogu to histogram reszt przed transformacją. Pokazuje on rozkład różnic między wartościami obserwowanymi a wartościami przewidzianymi przez model. Histogram wykazuje pewne skupienie danych wokół zera, ale z lekkim skrzywieniem w lewo, co wskazuje na asymetrię (negatywną skośność) rozkładu.  Na drugim rysunku rozkład reszt wydaje się być bardziej skoncentrowany wokół zera, co sugeruje, że transformacja przyczyniła się do poprawy normalności rozkładu.
+
+- Wykresy kwantyl-kwantyl (Q-Q) reszt - Trzeci wykres znajdujący się w lewym dolnym rogu to wykres kwantyl-kwantyl (Q-Q) reszt przed transformacją. Jest to wizualne narzędzie do oceny, czy dane pochodzą z rozkładu normalnego. Teoretyczne kwantyle rozkładu normalnego są wykreślone na osi x, a empiryczne kwantyle próbki na osi y. Jeżeli punkty układają się wzdłuż prostej, sugeruje to, że rozkład jest normalny. Na tym wykresie punkty generalnie układają się wzdłuż linii, ale widać pewne odstępstwa, szczególnie na krańcach, co może wskazywać na obecność ciężkich ogonów rozkładów reszt. Transformacja poprawia 'normalność' reszt, co widać na czwartym rysunku.
+
+**Komentarz do wyników:**
+
+- `lambda.hat : 0.31` - optymalna wartość parametru transformacji Boxa-Coxa - przekształcenie danych wejściowych z tą wartością lambda najlepiej przyczynia się do normalizacji rozkładu reszt modelu liniowego, gdzie zmienna 'mpg' jest zmienną zależną.
+
+- `Shapiro-Wilk normality test (alpha = 0.05)` 
+
+  - `statistic`: 0.9626522 - wartość statystyki testowej dla testu Shapiro-Wilka. Wartość bliska 1 sugeruje, że rozkład jest zbliżony do normalnego.
+  - `p.value`: 0.3240839 - p-wartość w teście Shapiro-Wilka jest znacznie wyższa niż standardowy próg istotności 0.05. Wysoka p-wartość wskazuje, że nie ma podstaw do odrzucenia hipotezy zerowej o normalności rozkładu reszt.
+  - `Result: Residuals are normal after transformation.` - po przeprowadzeniu transformacji Boxa-Coxa, reszty (różnice między obserwowanymi a przewidywanymi wartościami ) mają rozkład normalny.
+
+```{r}
+par(mfrow=c(1,2))
+hist(mtcars[, "mpg"]) #histogram oryginalnych danych
+hist(boxcoxlm_result$tf.data) #histogram transformowanych danych
+```
+```{r}
+boxcoxlm_result$method
+```
+**Komentarz:**
+
+Komenda `$method` w łatwy sposób pozwala sprawdzić metodę, jaką został estymowany parametr lambda transformacji Boxa-Coxa.
+
+</details>
+<br>
+
+## boxcoxmeta - *Zespołowa Transformacja Boxa-Coxa Poprzez Metaanalizę dla Normalności Zmiennej*
+
+**Opis**  
+Funkcja `boxcoxmeta` wykonuje zespołową transformację Boxa-Coxa poprzez metaanalizę dla normalności zmiennej i dostarcza analizę graficzną.
+
+**Użycie**  
+```
+boxcoxmeta(data, lambda = seq(-3, 3, 0.01), nboot = 100, lambda2 = NULL,
+          plot = TRUE, alpha = 0.05, verbose = TRUE)
+```
+
+<details>
+<summary><span style="color: blue;">**Argumenty**</summary>
+
+- `data`: numeryczny wektor wartości danych.
+
+- `lambda`: wektor zawierający sekwencję kandydatów na wartość lambda. Domyślnie ustawiony na zakres (-3, 3) z krokiem 0.01.
+
+- `nboot`: liczba próbek Bootstrapowych używanych do oszacowania błędów standardowych oszacowań lambda.
+
+- `lambda2`: numeryczna wartość dodatkowego parametru przesunięcia. Domyślnie ustawiona na `0`.
+
+- `plot`: wartość logiczna określająca, czy generować histogram z linią gęstości oraz QQ-plot dla surowych i przekształconych danych. Domyślnie ustawiona na `TRUE`.
+
+- `alpha`: poziom istotności do oceny normalności po transformacji. Domyślnie ustawiony na `0.05`.
+
+- `verbose`: wartość logiczna określająca, czy wyświetlać wyniki w konsoli R. Domyślnie ustawiona na `TRUE`.
+
+</details>
+<br>
+
+**Szczegóły**
+
+Oznaczając \( y \) jako zmienną w oryginalnej skali i \( y' \) jako zmienną przekształconą, transformacja potęgowa Boxa-Coxa jest zdefiniowana przez:
+$$
+y' = 
+  \begin{cases} 
+   \frac{y^\lambda - 1}{\lambda} & \text{jeśli } \lambda \neq 0 \\
+   \log(y) & \text{jeśli } \lambda = 0 
+  \end{cases}
+$$
+
+Jeśli dane zawierają jakiekolwiek obserwacje niedodatnie, można uwzględnić parametr przesunięcia \( \lambda_2 \) w transformacji, która jest zdefiniowana przez:
+
+$$
+y' = 
+  \begin{cases} 
+   \frac{(y + \lambda_2)^\lambda - 1}{\lambda} & \text{jeśli } \lambda \neq 0 \\
+   \log(y + \lambda_2) & \text{jeśli } \lambda = 0 
+  \end{cases}
+$$
+
+<details>
+<summary><span style="color: blue;">**Wartości zwracane**</summary>
+
+Lista o klasie `"boxcoxmeta"` zawierająca następujące elementy:
+
+- `method`: Preferowana metoda do oszacowania parametru transformacji Boxa-Coxa.
+
+- `lambda.hat`: Oszacowanie parametru transformacji Boxa-Coxa zgodnie z odpowiednią metodą.
+
+- `lambda2`: Dodatkowy parametr przesunięcia.
+
+- `result`: Ramka danych zawierająca wynik.
+
+- `alpha`: Poziom istotności do oceny normalności przekształconych reszt.
+
+- `tf.data`: Przekształcony zbiór danych.
+
+- `var.name`: Nazwa zmiennej.
+
+</details>
+<br>
+
+<details>
+<summary><span style="color: red;">**Przykład użycia**</summary>
+
+```{r}
+data(textile)
+out <- boxcoxmeta(textile[,1])
+```
+
+**Komentarz do wyników:**
+
+- `lambda.hat : -0.06551673` - wartość bliska zero sugeruje, że dane nie wymagają silnej transformacji (wartość 0 oznaczałaby logarytmiczną transformację).
+
+- `Normality tests for transformed data (alpha = 0.05)` 
+
+  - `Test Shapiro-Wilka`
+  
+  - `Test Andersona-Darlinga`
+  
+  - `Test Jarque-Bera`
+
+Wyniki dla każdego z testów wskazują na to, że przetransformowane dane są bliskie rozkładowi normalnemu.
+
+**Komentarz do wykresów:**
+
+- Histogramy reszt przed transformacją i po - Pierwszy wykres w lewym górnym rogu przedstawia histogram zmiennej przed transformacją. Rozkład jest silnie skośny w prawo; większość danych jest skoncentrowana w niższych wartościach, a długi ogon rozciąga się w kierunku wyższych wartości. Taki rozkład może sugerować, że mamy do czynienia z danymi o rozkładzie wykładniczym lub innym rozkładzie dalekim od normalnego. Drugi wykres w prawym górnym rogu pokazuje histogram tej samej zmiennej po transformacji. Rozkład po transformacji jest znacznie bardziej symetryczny i przypomina kształtem rozkład normalny, co sugeruje, że transformacja była skuteczna w stabilizacji wariancji i sprowadzeniu rozkładu danych bliżej do normalnego. 
+
+- Wykresy kwantyl-kwantyl (Q-Q) reszt - wykres w lewym dolnym rogu to wykres Q-Q dla zmiennej  przed transformacją. Wyraźnie widać, że punkty znacząco odchylają się od linii referencyjnej, co jest kolejnym dowodem na to, że oryginalne dane nie pochodzą z rozkładu normalnego. Dla wykresu Q-Q transformacji zmiennej, punkty na tym wykresie układają się znacznie bliżej linii referencyjnej w porównaniu z wykresem Q-Q przed transformacją. Oznacza to, że transformacja doprowadziła do sytuacji, w której rozkład danych jest bliższy normalności.
+
+```{r}
+par(mfrow=c(1,2))
+hist(textile[,1]) #dane oryginalne
+hist(out$tf.data) #dane przetransformowane
+```
+
+**Komentarz:**
+
+Dane przed tranformacją nie przypominają rozkładu normalnego (bardziej wykładniczy), a po transformacji rozkład jest już zbliżony do rozkładu normalnego.
+
+</details>
+<br>
+
+## boxcoxnc - *Transformacja Boxa-Coxa dla Normalności Zmiennej*
+
+**Opis**  
+Funkcja `boxcoxnc` wykonuje transformację Boxa-Coxa dla normalności zmiennej i dostarcza analizę graficzną.
+
+**Użycie**  
+```
+boxcoxnc(data, method = "sw", lambda = seq(-3, 3, 0.01), lambda2 = NULL,         plot = TRUE, alpha = 0.05, verbose = TRUE)
+```
+
+<details>
+<summary><span style="color: blue;">**Argumenty**</summary>
+
+- `data`: numeryczny wektor wartości danych.
+
+- `method`: ciąg znaków wybierający metodę estymacji parametru transformacji Boxa-Coxa. Domyślnie ustawiony na "sw" dla metody testu Shapiro-Wilka. Inne opcje to "ad" (test Andersona-Darlinga), "cvm" (test Cramera-von Misesa), "pt" (test Chi-kwadrat Pearsona), "sf" (test Shapiro-Francia), "lt" (test Lillieforsa), "jb" (test Jarque-Bera), "ac" (metoda sztucznej kowarianty), "mle" (estymacja metodą największej wiarygodności). 
+
+- `lambda`: wektor zawierający sekwencję kandydatów na wartość lambda. Domyślnie ustawiony na zakres (-3, 3) z krokiem 0.01.
+
+- `lambda2`: wartość numeryczna dodatkowego parametru przesunięcia. Domyślnie ustawiona na `lambda2 = 0`.
+
+- `plot`: wartość logiczna określająca, czy generować histogram z linią gęstości oraz QQ-plot dla surowych i przekształconych danych. Domyślnie ustawiona na `TRUE`.
+
+- `alpha`: poziom istotności do oceny normalności po transformacji. Domyślnie ustawiony na `alpha = 0.05`.
+
+- `verbose`: wartość logiczna określająca, czy wyświetlać wyniki w konsoli R.
+
+</details>
+<br>
+
+**Szczegóły**
+Oznaczając \( y \) jako zmienną w oryginalnej skali i \( y' \) jako zmienną przekształconą, transformacja potęgowa Boxa-Coxa jest zdefiniowana przez:
+
+$$
+y' = \left\{
+    \begin{array}{ll}
+        \frac{y^{\lambda}-1}{\lambda}, & \text{jeśli } \lambda \neq 0 \\
+        \log(y), & \text{jeśli } \lambda = 0
+    \end{array}
+\right.
+$$
+
+Jeśli dane zawierają jakiekolwiek obserwacje niedodatnie, można uwzględnić parametr przesunięcia \( \lambda_2 \) w transformacji, zdefiniowanej przez:
+
+$$
+y' =\left\{
+    \begin{array}{ll}
+         \frac{(y + \lambda_2)^{\lambda}-1}{\lambda}, & \text{jeśli } \lambda \neq 0 \\
+        \log(y + \lambda_2), & \text{jeśli } \lambda = 0
+    \end{array}
+\right.
+$$
+
+
+<details>
+<summary><span style="color: blue;">**Wartości zwracane**</summary>
+
+Lista o klasie `"boxcoxnc"` zawierająca następujące elementy:
+
+- `method`: Preferowana metoda do oszacowania parametru transformacji Boxa-Coxa.
+
+- `lambda.hat`: Oszacowanie parametru transformacji Boxa-Coxa zgodnie z odpowiednią metodą.
+
+- `lambda2`: Dodatkowy parametr przesunięcia.
+
+- `statistic`: Statystyka testu normalności danych przekształconych na podstawie określonego testu normalności w metodzie. Dla metody sztucznej kowarianty, statystyka uzyskana jest przez test Shapiro-Wilka dla przekształconych danych.
+
+- `p.value`: Wartość p testu normalności danych przekształconych na podstawie określonego testu normalności w metodzie. 
+
+- `alpha`: Poziom istotności do oceny normalności. 
+
+- `tf.data`: Przekształcony zbiór danych.
+
+- `var.name`: Nazwa zmiennej.
+
+</details>
+<br>
+
+<details>
+<summary><span style="color: red;">**Przykład użycia**</summary>
+
+```{r}
+data(textile)
+out <- boxcoxnc(textile[,1], method = "sw", plot = FALSE, verbose = FALSE)
+print(out$lambda.hat) #Estymowany parametr transformacji Boxa-Coxa oparty na statystyce testowej Shapiro-Wilka:
+print(out$p.value) #p-wartość testu Shapiro-WIlka dla transformowanych danych
+print(out$tf.data) #Transformowane dane
+```
+```{r}
+out2 <- boxcoxnc(textile[,1], method = "sf", plot = FALSE, verbose = FALSE)
+print(out2$lambda.hat) #Estymowany parametr transformacji Boxa-Coxa oparty na statystyce testowej Shapiro-Francia
+print(out2$p.value) #p-wartość testu Shapiro-WIlka dla transformowanych danych
+print(out2$tf.data) #Transformowane dane
+```
+**Komentarz:**
+
+Widać, że zarówno p-wartość, estymowana wartość lambda czy przetransformowane dane są bardzo podobne dla różnych metod estymacji parametru.
+</details>
+<br>
+
+# Przedziały ufności
+
+## confInt.boxcoxfr
+
+**Opis**
+`confInt.boxcoxfr` oblicza średnią i asymetryczny przedział ufności dla danych przekształconych z powrotem w każdej grupie i rysuje ich słupki błędów z przedziałami ufności.
+
+**Użycie**
+```
+## Metoda S3 dla klasy 'boxcoxfr'
+confInt(x, level = 0.95, plot = TRUE, xlab = NULL, ylab = NULL, title = NULL,
+        width = NULL, verbose = TRUE, ...)
+```
+
+<details>
+<summary><span style="color: blue;">**Argumenty**</summary>
+
+- `x`: obiekt klasy `boxcoxfr`.
+
+- `level`: poziom ufności.
+- `plot`: wartość logiczna określająca, czy rysować słupki błędów z przedziałami ufności.
+
+- `xlab`: etykieta osi X, domyślnie opis zmiennej `x`.
+
+- `ylab`: etykieta osi Y, domyślnie opis zmiennej `y`.
+
+- `title`: główny tytuł wykresu.
+
+- `width`: numeryczna wartość określająca szerokość małych linii na górze i na dole słupków błędów (domyślnie ustawiona na 0.15).
+
+- `verbose`: wartość logiczna określająca, czy wyświetlać wyniki w konsoli R.
+
+- `...`: dodatkowe argument(y) dla metod.
+
+</details>
+<br>
+
+**Szczegóły**
+
+Przedział ufności w każdej grupie jest konstruowany osobno.
+
+<details>
+<summary><span style="color: blue;">**Wartości zwracane**</summary>
+
+Macierz z kolumnami przedstawiającymi średnią, dolne i górne granice przedziału ufności dla danych przekształconych z powrotem. Będą one oznaczone jako (1 - poziom)/2 i 1 - (1 - poziom)/2 w procentach (domyślnie 2,5% i 97,5%).
+
+</details>
+<br>
+
+<details>
+<summary><span style="color: red;">**Przykład użycia**</summary>
+
+```{r}
+data(AADT)
+attach(AADT)
+out <- boxcoxfr(aadt, class, verbose = FALSE)
+confInt(out, level = 0.95)
+```
+
+**Komentarz:**
+
+`confInt` oblicza przedziały ufności dla przekształconych danych. Poziom ufności wynosi tutaj 95%, co jest standardową praktyką w analizie statystycznej.
+
+Wyniki, które są już "odwrócone" po transformacji Boxa-Coxa, pokazują średnie wartości AADT (średni dobowy ruch roczny) dla czterech różnych typów dróg (rural interstate, rural noninterstate, urban interstate, urban noninterstate), razem z dolnymi i górnymi granicami przedziału ufności dla każdej kategorii.
+
+Poniżej mamy też graficznie przedstawione przedziały wartości dla każdej z grup wraz z średnimi wyliczonymi dla nich.
+
+</details>
+<br>
+
+## confInt.boxcoxmeta
+
+**Opis**  
+`confInt.boxcoxmeta` oblicza średnią i asymetryczny przedział ufności dla danych przekształconych z powrotem.
+
+**Użycie**  
+```
+## Metoda S3 dla klasy 'boxcoxmeta'
+confInt(x, level = 0.95, verbose = TRUE, ...)
+```
+
+<details>
+<summary><span style="color: blue;">**Argumenty**</summary>
+
+- `x`: obiekt klasy `boxcoxmeta`.
+
+- `level`: poziom ufności.
+
+- `verbose`: wartość logiczna określająca, czy wyświetlać wyniki w konsoli R.
+
+- `...`: dodatkowe argument(y) dla metod.
+
+</details>
+<br>
+
+**Szczegóły**
+
+Konstruowany jest przedział ufności dla wybranej zmiennej.
+
+<details>
+<summary><span style="color: blue;">**Wartości zwracane**</summary>
+
+Macierz z kolumnami przedstawiającymi średnią, dolne i górne granice przedziału ufności dla danych przekształconych z powrotem. Będą one oznaczone jako (1 - poziom)/2 i 1 - (1 - poziom)/2 w procentach (domyślnie 2,5% i 97,5%).
+
+</details>
+<br>
+
+<details>
+<summary><span style="color: red;">**Przykład użycia**</summary>
+```{r}
+data(textile)
+out <- boxcoxmeta(textile[,1], verbose = FALSE, plot = FALSE)
+confInt(out, level = 0.95) 
+```
+**Komentarz:**
+Przedstawiony jest 95% przedziały ufności "odwróconych" wyników po transformacji Boxa-Coxa, co oznacza, że reprezentowanych w oryginalnej skali danych.
+
+```{r}
+
+confInt(out, level = 0.9) 
+```
+**Komentarz:**
+Możemy łatwo zmieniać poziom ufności za pomocą argumentu `level` dla funkcji `confInt()`.
+
+</details>
+<br>
+
+## confInt.boxcoxnc
+
+**Opis**  
+`confInt.boxcoxnc` to ogólna funkcja służąca do obliczania średniej i asymetrycznego przedziału ufności dla danych przekształconych z powrotem.
+
+**Użycie**  
+```
+## Metoda S3 dla klasy 'boxcoxnc'
+confInt(x, level = 0.95, verbose = TRUE, ...)
+```
+
+<details>
+<summary><span style="color: blue;">**Argumenty**</summary>
+
+- `x`: obiekt klasy `boxcoxnc`.
+
+- `level`: poziom ufności.
+
+- `verbose`: wartość logiczna określająca, czy wyświetlać wyniki w konsoli R.
+
+- `...`: dodatkowe argument(y) dla metod.
+
+</details>
+<br>
+
+**Szczegóły**
+
+Konstruowany jest przedział ufności dla wybranej zmiennej.
+
+
+<details>
+<summary><span style="color: blue;">**Wartości zwracane**</summary>
+
+Macierz z kolumnami przedstawiającymi średnią, dolne i górne granice przedziału ufności dla danych przekształconych z powrotem. Będą one oznaczone jako (1 - poziom)/2 i 1 - (1 - poziom)/2 w procentach (domyślnie 2,5% i 97,5%).
+
+</details>
+<br>
+
+<details>
+<summary><span style="color: red;">**Przykład użycia**</summary>
+
+```{r}
+data(grades)
+hist(grades[,1])
+```
+
+**Komentarz:**
+
+Histogram ocen uczniów, wygląda na rozkład lewoskośny.
+
+```{r}
+out <- boxcoxnc(grades[,1], verbose = FALSE, plot = FALSE)
+confInt(out)
+```
+**Komentarz:**
+
+Przedstawiony jest 95% przedziały ufności "odwróconych" wyników po transformacji Boxa-Coxa, co oznacza, że reprezentowanych w oryginalnej skali danych.
+
+</details>
+<br>
