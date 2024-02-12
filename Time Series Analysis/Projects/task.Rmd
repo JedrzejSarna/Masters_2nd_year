@@ -1,0 +1,133 @@
+---
+title: "Company sales"
+author: "Jędrzej Sarna, Wojciech Szyszka, Piotr Lachowicz, Aleksandra Piłat"
+date: "2023-12-18"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+## Company Sales Prediction
+
+
+```{r}
+setwd('/Users/jedrzejsarna/Desktop/II stopien 3 semestr/Time Series Analysis')
+
+data <- read.csv("Month_Value_1.csv")
+data$Sales_quantity
+```
+
+```{r}
+par(mfrow=c(1,1))
+plot(ts(data$Sales_quantity))
+```
+
+We can see that since May 2020 there is no data that we are going to predict.
+
+```{r}
+TS<-ts(data$Sales_quantity, start=c(2015,1), end=c(2020,4), frequency = 12) # The first month is January 2015 (see start=...) and there is  12 values for the year.
+plot(TS)
+```
+
+```{r}
+#Box-Cox transformation
+library(forecast)
+
+lambda <- BoxCox.lambda(TS)
+lambda
+```
+
+```{r}
+BC_TS<-BoxCox(TS,lambda = 'auto') # A time series with constant(?) variance 
+```
+```{r}
+par(mfrow=c(2,1))
+plot(TS)
+plot(BC_TS)
+```
+
+We assume there is no seasonality.
+
+```{r}
+#removing trend
+D12_TS<-diff(BC_TS,lag=1)
+```
+
+
+```{r}
+par(mfrow=c(2,1))
+plot(BC_TS)
+plot(D12_TS)
+```
+
+
+```{r}
+par(mfrow=c(1,2))
+LagMax<-48
+acf(na.omit(D12_TS), lag.max=LagMax) #Watch out for missing data
+pacf(na.omit(D12_TS), lag.max=LagMax) #Watch out for missing data
+```
+
+```{r}
+mean(D12_TS)
+```
+
+We choose the AR(3) model.
+
+```{r}
+#fit data to AR(3)
+modelll_TS<-arima(D12_TS,order=c(3,0,0),include.mean =TRUE)
+future_TS<-forecast(modelll_TS,h=32,level=95 )
+par(mfrow=c(1,1))
+plot(future_TS)
+future_TS
+```
+
+```{r}
+future_TS$mean
+```
+
+```{r}
+D12_TS
+```
+
+Now we reversing the transformation.
+
+```{r}
+A_future<-c(rep(0,32))
+
+X<-c(rep(0,32))
+X[1]=BC_TS[64]
+for(i in 2:32)
+{
+  X[i]=X[i-1]+future_TS$mean[i-1]
+}
+```
+
+```{r}
+for(i in 1:32) {
+  A_future[i]=InvBoxCox(future_TS$mean[i]+X[i], lambda)
+}
+A_future
+```
+
+```{r}
+#confidence intervals
+CI_future<-data.frame(L=c(rep(0,32)),prediction=A_future,U=c(rep(0,32)))
+```
+
+```{r}
+for(i in 1:32) {
+  CI_future$L[i]=InvBoxCox(future_TS$lower[i]+X[i], lambda)
+  CI_future$U[i]=InvBoxCox(future_TS$upper[i]+X[i], lambda)
+}
+CI_future<-ts(CI_future,start=c(2020,5),end = c(2022,12),frequency = 12)
+CI_future
+```
+
+```{r}
+TS<-ts(data$Sales_quantity, start=c(2015,1), end=c(2022,12), frequency = 12)
+TS_predict<-ts(A_future,start=c(2020,5),end = c(2022,12),frequency = 12)
+plot(TS)
+lines(TS_predict, col="red")
+```

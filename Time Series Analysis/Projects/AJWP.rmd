@@ -1,0 +1,303 @@
+---
+title: "Time Series - Final Project"
+author: "by ... (your names)"
+date: ' '
+output:
+  html_document:
+    df_print: paged
+---
+
+**Remove these hints** :-)
+
+0.  It may be necessary to install the knitr package.
+1.  Choose from the menu *Help-\>Markdown Quick Reference* to get information on creating an html/pdf report in R-Studio.\
+2.  The report should include *R code* and comments on the results.\
+3.  Click the *Knit* button to generate your html/pdf report.
+
+------------------------------------------------------------------------
+
+**You have two tasks below:**
+
+------------------------------------------------------------------------
+
+# TASK 1:
+
+Consider the monthly *numbers of visitors* (see file dane_AJWP.csv at UPeL)).\
+1. Make *numbers of visitors* forecasts for each month of the year 2024.
+
+------------------------------------------------------------------------
+
+## SOLUTION of TASK 1
+
+First let's define useful functions.
+
+```{r}
+periodogram <- function(TS)
+{
+  n = length(TS)
+  Per= Mod(fft(TS-mean(TS)))^2/n  
+  Freq = (1:n -1)/n
+  plot(Freq[1:n], Per[1:n], type='h', lwd=2, ylab="Periodogram",
+       xlab="Frequency")    
+ 
+}
+```
+
+Function periodogram plots the periodogram of time series TS.
+
+```{r}
+periods <- function(TS)
+{ 
+  n = length(TS)
+  Per= Mod(fft(TS-mean(TS)))^2/n  #
+  Freq = (1:n -1)/n
+  nn=n/2
+  y = cbind(1:nn, Freq[1:nn], 1/Freq[1:nn],Per[1:nn]); y[order(y[,4],decreasing = TRUE),]
+}
+```
+
+Function periods shows possible periods.
+
+```{r}
+ACF_and_PACF <- function(TS, LagMax)
+{
+  par(mfrow = c(1, 2))
+  acf(na.omit(TS), lag.max = LagMax)
+  pacf(na.omit(TS), lag.max = LagMax)
+  par(mfrow = c(1, 1))
+}
+```
+
+Function ACF_and_PAC plots ACF and PACF.
+
+PROPER TASK:
+
+We import the data and plot it.
+
+```{r}
+data <- read.csv(file = "dane_AJWP.csv")
+TS <- ts(data$numbers.of.V., start = c(2012, 1), frequency = 12)
+par(mfrow=c(1,1))
+plot(TS)
+```
+
+Now we check if the data are seasonal by using periodogram.
+
+```{r}
+periodogram(TS)
+periods(TS)
+```
+
+As we can see, the biggest value in periodogram is for period = 4 months and the second biggest value is for period = 12 months.
+
+We decide to take period = 12 months as it is very typical for this type of data (number of visitors).
+
+We remove seasonality by differentiating and plot the obtained time series.
+
+```{r}
+D12_TS <- diff(TS, lag = 12)
+plot(D12_TS)
+```
+
+We remove the trend.
+
+```{r}
+final_TS <- diff(D12_TS, lag = 1)
+plot(final_TS)
+```
+
+Now we plot the ACF and PACF of our final data.
+
+```{r}
+ACF_and_PACF(final_TS, 80)
+```
+
+We will try to fit the data to some SARIMA $(p,d,q)×(P,D,Q)_s$ model (with s = 12).
+
+Looking at the ACF and PACF plots we see that:
+
+-   We can try P=1, Q=0 or P=0. Q=1.
+
+-   PACF tails off and ACF cuts off at lag 1, 3 or maybe 4. So we consider p=0 and:
+
+    -   q=1,
+
+    -   q=3,
+
+    -   q=4.
+
+P = 1, Q = 0
+
+```{r}
+library(astsa)
+for(i in c(1,3,4))
+{
+  mA<-sarima(TS,0,1,i,1,1,0,12)
+  print(mA$ttable)
+}
+```
+
+P = 0, Q = 1
+
+```{r}
+for(i in c(1,3,4))
+{
+  mA<-sarima(TS,0,1,i,0,1,1,12)
+  print(mA$ttable)
+}
+```
+
+Making predicions.
+```{r}
+pred<-sarima.for(TS,n.ahead=12,0,1,3,0,1,1,12)
+```
+
+------------------------------------------------------------------------
+
+# TASK 2:
+
+Consider the [Wojciech's time series from Lab 1 task 4.2](https://upel.agh.edu.pl/mod/forum/discuss.php?d=8438) (Weekly closing prices from WSE of the PKN Orlen) 1. Make all necessary transformations to get a stationary time series (noise).\
+2. If possible, choose the ARMA (p, q) model for stationary noise.
+
+------------------------------------------------------------------------
+
+## SOLUTION of TASK 2
+
+Installs and loads necessary R libraries, including "tidyverse," "tseries," and "forecast."
+
+```{r}
+# install.packages(c("tidyverse", "tseries", "conflicted", "forecast"))
+library(conflicted)
+library(tidyverse)
+library(tseries)
+library(forecast)
+```
+
+Resolves any potential conflicts in function names between loaded libraries using the conflicted package.
+
+```{r}
+conflict_prefer("filter", "stats")
+conflict_prefer("lag", "stats")
+```
+
+Reads a CSV file named "PKN.WA.csv" containing financial data into a data frame called data.
+
+```{r}
+data <- read.csv("PKN.WA.csv")
+```
+
+Creates a time series object (TS) from the closing prices in the data, specifying a frequency of 52 (assuming weekly data) and a starting date of January 2009.
+
+```{r}
+TS <- ts(data$Close, frequency = 52, start = c(2009, 1))
+```
+
+Plots the original time series to visualize the closing prices over time.
+
+```{r}
+plot(TS, main = "Original Time Series", ylab = "Closing Prices", xlab = "Time")
+```
+
+Applies differencing to the time series (TS_diff) to remove the trend.
+
+```{r}
+TS_diff <- diff(TS)
+plot(TS_diff, main = "Differenced Time Series", ylab = "Differenced Closing Prices", xlab = "Time")
+```
+
+Applies seasonal differencing to the differenced time series (TS_seasonal_diff) to remove seasonality.
+
+```{r}
+TS_seasonal_diff <- diff(TS_diff, lag = 52)
+plot(TS_seasonal_diff, main = "Seasonally Differenced Time Series", ylab = "Seasonally Differenced Closing Prices", xlab = "Time")
+```
+
+Performs an Augmented Dickey-Fuller test on the seasonally differenced time series to check for stationarity.
+
+```{r}
+adf.test(TS_seasonal_diff)
+```
+
+Plots the autocorrelation and partial autocorrelation functions of the seasonally differenced time series.
+
+```{r}
+par(mfrow=c(1,2))
+acf(TS_seasonal_diff)
+pacf(TS_seasonal_diff)
+par(mfrow=c(1,1))
+```
+
+Applies a logarithmic transformation to the original time series (TS_log) to stabilize variance.
+
+```{r}
+TS_log <- log(TS)
+```
+
+Applies differencing to the log-transformed time series (TS_log_diff) and performs an Augmented Dickey-Fuller test to check for stationarity.
+
+```{r}
+TS_log_diff <- diff(TS_log)
+adf.test(TS_log_diff)
+```
+
+Plots the final transformed time series after applying logarithmic transformation and differencing.
+
+```{r}
+plot(TS_log_diff, main = "Final Transformed Time Series", ylab = "Log Differenced Closing Prices", xlab = "Time")
+```
+
+Plots the autocorrelation and partial autocorrelation functions of the log-differenced time series.
+
+```{r}
+par(mfrow=c(1,2))
+acf(TS_log_diff)
+pacf(TS_log_diff)
+par(mfrow=c(1,1))
+```
+
+Defines an ARIMA model with specified order (p, 0, q) and fits it to the log-differenced time series.
+
+```{r}
+p <- 3
+q <- 1
+arima_model <- arima(TS_log_diff, order = c(p, 0, q))
+```
+
+Extracts residuals from the ARIMA model.
+
+```{r}
+residuals <- residuals(arima_model)
+```
+
+Generates a diagnostic plot for the ARIMA model.
+
+```{r}
+tsdiag(arima_model)
+```
+
+Prints a summary of the ARIMA model.
+
+```{r}
+summary(arima_model)
+```
+
+Forecasts future values using the fitted ARIMA model for the next 10 time points.
+
+```{r}
+forecast_values <- forecast(arima_model, h = 52)
+```
+
+Plots the forecasted values against time.
+
+```{r}
+plot(forecast_values, main = "ARIMA Forecast", ylab = "Log Differenced Closing Prices", xlab = "Time")
+```
+
+Plots the residuals of the ARIMA model against time.
+
+```{r}
+plot(residuals, main = "Residuals", ylab = "Residuals", xlab = "Time")
+```
+------------------------------------------------------------------------
+
+GOOD LUCK !!!
