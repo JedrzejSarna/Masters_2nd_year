@@ -7,7 +7,7 @@ During the second year of my Master's Degree I had the opportunity to attend som
 - Resampling Methods
 - Statistical Learning
 - Statistical Hypothesis Testing
-- Time Series
+- Time Series Analysis
 - Advanced machine learning methods
 
 In each of the courses listed above, I had the opportunity to do a smaller or larger project that I would like to share here :)
